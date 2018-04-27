@@ -45,9 +45,16 @@ var svgFontTemplate = _.template(
     '</svg>'
   );
 
+var svgTemplate = _.template(
+  '<svg height="<%= svg.height %>" width="<%= svg.width %>" viewBox="<%= svg.viewbox %>" xmlns="http://www.w3.org/2000/svg">\n' +
+  '<path d="<%= svg.d %>"/>\n' +
+  '</svg>'
+);
+
 function parseSvgImage(data, filename) {
 
-  var doc = (new Domparser()).parseFromString(data, 'application/xml');
+  var parser = new Domparser();
+  var doc = parser.parseFromString(data, "image/svg+xml");
   var svg = doc.getElementsByTagName('svg')[0];
 
   if (!svg.hasAttribute('height')) {
@@ -59,6 +66,7 @@ function parseSvgImage(data, filename) {
 
   var height = svg.getAttribute('height');
   var width  = svg.getAttribute('width');
+  var viewbox = svg.getAttribute('viewBox');
 
   // Silly strip 'px' at the end, if exists
   height = parseFloat(height);
@@ -67,10 +75,17 @@ function parseSvgImage(data, filename) {
   var path = svg.getElementsByTagName('path');
 
   if (path.length > 1) {
-    throw 'Multiple paths not supported' + (filename ? ' (' + filename + ' ' : '');
+    for (let i = 0; i < path.length; i++) {
+      const element = path[i];
+      // remove svgs that have bounding box
+      if ( element.getAttribute('d').match(/M0.+/g) ) {
+        svg.removeChild(element);
+      }
+      console.log('Multiple paths removed: ' + filename);
+   }
   }
   if (path.length === 0) {
-    throw 'No path data fount' + (filename ? ' (' + filename + ' ' : '');
+    throw 'No path data found' + (filename ? ' (' + filename + ' ' : '');
   }
 
   path = path[0];
@@ -83,7 +98,7 @@ function parseSvgImage(data, filename) {
     transform = path.getAttribute('transform');
   }
 
-  return { height, width, d, transform };
+  return { height, width, d, transform, viewbox };
 }
 
 var parser = new ArgumentParser({
@@ -105,9 +120,41 @@ var configServer = {
 };
 
 ////////////////////////////////////////////////////////////////////////////////
+// TODO
+// update function
+function resize_icons() {
+  var file_name = path.join('./svgs', 'test' + '.svg');
+  var file_read = fs.readFileSync(file_name, 'utf8');
+  var svg = parseSvgImage(fs.readFileSync(file_name, 'utf8'), file_name);
+
+  var viewbox = 1000;
+  var icon_size = svg.height;
+  var scale = viewbox / icon_size;
+
+  var trans = viewbox / 2;
+
+  var transformed = new SvgPath(svg.d)
+                          .scale(scale)
+                          .abs().round(1).rel()
+                          .toString();
+
+  svg.d = transformed;
+  svg.height = viewbox;
+  svg.width = viewbox;
+  svg.viewbox = `0 0 ${viewbox} ${viewbox}`;
+  console.log(svg)
+
+  var svg_resize = svgTemplate({svg});
+
+  fs.writeFileSync('./svgs/test.svg', svg_resize, 'utf8');
+}
+
+resize_icons();
+
+// Clean up script and remove config file
+// try to use vanilla js
 
 // Scan sources
-
 // we don't need to loop - but could keep it in if we ever want to add more than one font
 _.forEach(args.input_fonts, function (fontDir) {
   // Iterate each font
@@ -156,7 +203,7 @@ _.forEach(args.input_fonts, function (fontDir) {
 });
 
 // Write out configs
-fs.writeFileSync(args.output_server, 'module.exports = ' + JSON.stringify(configServer, null, 2), 'utf8');
+// fs.writeFileSync(args.output_server, 'module.exports = ' + JSON.stringify(configServer, null, 2), 'utf8');
 
 // Prepare SVG structures & write font file
 var font = {
