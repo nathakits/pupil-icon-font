@@ -74,7 +74,7 @@ function parseSvgImage(data, filename) {
   var parser = new Domparser();
   var doc = parser.parseFromString(data, 'image/svg+xml');
   var svg = doc.getElementsByTagName('svg')[0];
-
+  
   if (!svg.hasAttribute('height')) {
     throw `Missed height attribute in ${filename}`;
   }
