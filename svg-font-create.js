@@ -70,14 +70,12 @@ var svgFontTemplate = _.template(
     width,
     viewbox,
     d
-  }) => `
-    <svg height="${height}" width="${width}" viewBox="${viewbox}" xmlns="http://www.w3.org/2000/svg">
-      <path d="${d}"/>
-    </svg>
-    `;
+  })  =>
+  `<svg height="${height}" width="${width}" viewBox="${viewbox}" xmlns="http://www.w3.org/2000/svg">
+  <path d="${d}"/>
+</svg>`;
 
 ////////////////////////////////////////////////////////////////////////////////
-
 
 // parse svg to object attributes
 function parseSvgImage(data, filename) {
@@ -159,57 +157,101 @@ function scale_icons(svgname) {
   };
 
   var svg_resized = testTemplate(svg_obj);
-  fs.writeFileSync('./dist/s.svg', svg_resized, 'utf8');
+  fs.writeFileSync('./dist/' + svgname, svg_resized, 'utf8');
 }
 
+// let input = fs.readdirSync('./svgs');
 
-
-let input = fs.readdirSync('./svgs');
-
-
-for (let svgname of input) {
-   // var cfg = yaml.load(fs.readFileSync(path.resolve('./config.yml'), 'utf8'));
-  scale_icons(svgname);
-  console.log(svgname);
-}
-
-// if (width === 1000) {
-  
-// } else {
-//   scale_icons();
+// main function to execute scaling svgs and create font
+// function run() {
+//   for (let i = 0; i < input.length; i++) {
+//     const svgname = input[i];
+//     scale_icons(svgname);
+//   }
 // }
 
+let fontSrc = './src';
+let fontDir = fs.readdirSync(fontSrc);
 
-// server config, to build svg fonts
-// contains uid hash + svg paths, to generate font quickly
-// var configServer = {
-//   icons : {},
-//   fonts : {},
-//   metas : {}
-// };
+function transformCustomPath(fontDir) {
 
-////////////////////////////////////////////////////////////////////////////////
+  // loop through all the src svg folder
+  // for when we want more than one font
+  for (let i = 0; i < fontDir.length; i++) {
+    let folder = fontDir[i];
+
+    if (folder != '.DS_Store') {
+      // load glyphs from config file
+      let cfg = yaml.load(fs.readFileSync(path.resolve('./config.yml'), 'utf8'));
+      let glyph = cfg.glyphs
+
+      // iterate glyphs
+      for (let i = 0; i < glyph.length; i++) {
+        let _glyph = glyph[i];
+        // cleanup field list
+        let { codename, code } = _glyph;
+
+        let file_name = path.join(`${fontSrc}/${folder}`, codename + '.svg');
+        let svg = parseSvgImage(fs.readFileSync(file_name, 'utf8'), file_name);
+        
+        let scale = cfg.font.scale;
+        let vb = cfg.font.viewbox;
+        let x = vb * scale;
+        let y = vb - x;
+        let z = y / 2;
+
+        let trans_x = z
+        let trans_y = z + cfg.font.descent
+
+        let transformed = new SvgPath(svg.d)
+                                .scale(scale)
+                                .translate(trans_x, trans_y)
+                                .abs().round(1).rel()
+                                .toString();
+
+        // console.log(transformed);
 
 
-// Clean up script and remove config file
-// try to use vanilla js
+      }
 
-// Scan sources
-// we don't need to loop - but could keep it in if we ever want to add more than one font
+    }
 
-// var data = {}; // or wherever you get it from)
+  }
 
-// function svg2ttf(argument) {
-//   for (var i = Things.length - 1; i >= 0; i--) {
-//       Things[i]
-//     }  
+}
 
 
-//     for (var key in defaultData){
-//        data[key] = data[key] || defaultData[key];
-//     }
-// } 
 
+
+
+function writeFile() {
+
+  let font = {
+    fontname: 'pupil_icons',
+    familyname: 'pupil',
+    ascent: 850,
+    descent: -150
+  };
+  
+  transformCustomPath(fontDir);
+
+  var glyphs = [];
+  
+  var svgOut = svgFontTemplate({
+    font,
+    glyphs,
+    metadata: 'internal font for pupil software',
+    fontHeight : font.ascent - font.descent
+  });
+
+  console.log(svgOut)
+
+  // create single font svg
+  // fs.writeFileSync(args.output, svgOut, 'utf8');
+
+}
+
+writeFile();
 
 // _.forEach(args.input_fonts, function (fontDir) {
 //   // Iterate each font
@@ -294,3 +336,4 @@ for (let svgname of input) {
 // });
 
 // fs.writeFileSync(args.output, svgOut, 'utf8');
+
