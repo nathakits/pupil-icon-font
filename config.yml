@@ -1,47 +1,4 @@
 ---
-# This is configuration file for font builder and other support scripts.
-# Format is descriped below.
-#
-# # metadata, to generate demo & fontello info dialogs
-# meta:
-#
-#  author: Daniel Buce
-#  homepage: http://...
-#  email: ...
-#  license: SIL
-#  license_url: http://scripts.sil.org/OFL
-#
-# # Font headers. All vars from here will be used as font
-# # params in fontforge http://fontforge.sourceforge.net/python.html
-# font:
-#
-#   version: "1.0"
-#
-#   # use !!!small!!! letters a-z, or Opera will fail under OS X
-#   # fontname will be also used as file name.
-#
-#   fontname: myfont
-#   fullname: MyFont
-#   familyname: Myfont
-#
-#   height: 1000
-#   ascent: 850
-#   descent: -150
-#   weight: "Regular"
-#
-#   Adjust t
-#   scale: 0.7
-#
-#   copyright: Copyright (C) 2012 by xxxxxxxx
-#
-#
-# glyphs:
-#   - name: glyph_file            # file name, without extention
-#     code: 0xNNN                 # Symbol code 0x - hex
-#
-################################################################################
-#
-
 
 meta:
   author: Nathakit Sae-Tan
@@ -63,6 +20,7 @@ font:
   descent: -150
   weight: Normal
   scale: .7
+  viewbox: 1000
 
 glyphs:
 
