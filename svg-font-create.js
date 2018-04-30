@@ -80,9 +80,9 @@ var svgFontTemplate = _.template(
 // parse svg to object attributes
 function parseSvgImage(data, filename) {
 
-  var parser = new Domparser();
-  var doc = parser.parseFromString(data, 'image/svg+xml');
-  var svg = doc.getElementsByTagName('svg')[0];
+  let parser = new Domparser();
+  let doc = parser.parseFromString(data, 'image/svg+xml');
+  let svg = doc.getElementsByTagName('svg')[0];
   
   var height = svg.getAttribute('height');
   var width  = svg.getAttribute('width');
@@ -98,19 +98,23 @@ function parseSvgImage(data, filename) {
   
   if (path.length > 1) {
     for (let i = 0; i < path.length; i++) {
-      const paths = path[i];
+      let paths = path[i];
+      let path_d = paths.getAttribute('d')
+
       // remove svgs that have bounding box
-      if ( paths.getAttribute('d').match(/M0.+/g) ) {
+      if (paths.getAttribute('d').match(/M0.+/g) ) {
         svg.removeChild(paths);
-      } else {
-        throw `Multi paths not supported: ${filename}`;
-      }
-      console.log(`Bounding box removed: ${filename}`);
+      } 
+      // else {
+      //   throw `Multiple paths not supported: ${filename}`;
+      // }
+      // console.log(`Bounding box removed: ${filename}`);
     }
   } else if (path.length === 0) {
     throw `No path data found ${filename}`;
   }
 
+  
   path = path[0];
   var d = path.getAttribute('d');
 
@@ -121,9 +125,14 @@ function parseSvgImage(data, filename) {
     viewbox };
 }
 
+let fontSrc = './src';
+let fontDir = fs.readdirSync(fontSrc);
+let output = path.join('./dist', fontDir.toString() + '.svg');
+
+
 // scale svg if it's from other icon sets
-function scale_icons(svgname) {
-  var file_name = path.join('./svgs', svgname);
+function scale_icons(svgname, fontdir) {
+  var file_name = path.join('./src', fontdir , svgname);
   var file_read = fs.readFileSync(file_name, 'utf8');
   var svg = parseSvgImage(fs.readFileSync(file_name, 'utf8'), file_name);
 
@@ -157,74 +166,15 @@ function scale_icons(svgname) {
   };
 
   var svg_resized = testTemplate(svg_obj);
-  fs.writeFileSync('./dist/' + svgname, svg_resized, 'utf8');
-}
-
-// let input = fs.readdirSync('./svgs');
-
-// main function to execute scaling svgs and create font
-// function run() {
-//   for (let i = 0; i < input.length; i++) {
-//     const svgname = input[i];
-//     scale_icons(svgname);
-//   }
-// }
-
-let fontSrc = './src';
-let fontDir = fs.readdirSync(fontSrc);
-
-function transformCustomPath(fontDir) {
-
-  // loop through all the src svg folder
-  // for when we want more than one font
-  for (let i = 0; i < fontDir.length; i++) {
-    let folder = fontDir[i];
-
-    if (folder != '.DS_Store') {
-      // load glyphs from config file
-      let cfg = yaml.load(fs.readFileSync(path.resolve('./config.yml'), 'utf8'));
-      let glyph = cfg.glyphs
-
-      // iterate glyphs
-      for (let i = 0; i < glyph.length; i++) {
-        let _glyph = glyph[i];
-        // cleanup field list
-        let { codename, code } = _glyph;
-
-        let file_name = path.join(`${fontSrc}/${folder}`, codename + '.svg');
-        let svg = parseSvgImage(fs.readFileSync(file_name, 'utf8'), file_name);
-        
-        let scale = cfg.font.scale;
-        let vb = cfg.font.viewbox;
-        let x = vb * scale;
-        let y = vb - x;
-        let z = y / 2;
-
-        let trans_x = z
-        let trans_y = z + cfg.font.descent
-
-        let transformed = new SvgPath(svg.d)
-                                .scale(scale)
-                                .translate(trans_x, trans_y)
-                                .abs().round(1).rel()
-                                .toString();
-
-        // console.log(transformed);
-
-
-      }
-
-    }
-
-  }
-
+  fs.writeFileSync(`./src/${fontdir}/${svgname}`, svg_resized, 'utf8');
 }
 
 
-
-
-
-function writeFile() {
+function createSvgFont(fontSrc, fontDir, output) {
+  var folder = fontDir.toString();
+  var cfg = yaml.load(fs.readFileSync(path.resolve('./config.yml'), 'utf8'));
+  var config_glyph = cfg.glyphs;
+  var arr = [];
 
   let font = {
     fontname: 'pupil_icons',
@@ -232,26 +182,102 @@ function writeFile() {
     ascent: 850,
     descent: -150
   };
-  
-  transformCustomPath(fontDir);
 
-  var glyphs = [];
+  for (var i = 0; i < config_glyph.length; i++) {
+    var _config = config_glyph[i];
+    var { codename, code } = _config;    
+    var file_name = path.join(fontSrc, folder, codename + '.svg');
+    var svg = parseSvgImage(fs.readFileSync(file_name, 'utf8'), file_name);
+
+    var scale = cfg.font.scale;
+    var vb = cfg.font.viewbox;
+    var x = vb * scale;
+    var y = vb - x;
+    var z = y / 2;
+
+    var trans_x = z;
+    var trans_y = z + cfg.font.descent;
+
+    var transformed = new SvgPath(svg.d)
+      .scale(scale)
+      .translate(trans_x, trans_y)
+      .abs()
+      .round()
+      .rel()
+      .toString();
+
+    var glyphs = {};
+
+    glyphs.width = svg.width;
+    glyphs.name = codename;
+    glyphs.d = transformed;
+    glyphs.unicode = '&#x' + code.toString(16) + ';';
+
+    arr.push(glyphs);
+    
+    
+  }
   
   var svgOut = svgFontTemplate({
-    font,
-    glyphs,
-    metadata: 'internal font for pupil software',
-    fontHeight : font.ascent - font.descent
-  });
+                  font,
+                  glyphs: arr,
+                  metadata: 'Internal font for pupil software',
+                  fontHeight : font.ascent - font.descent
+                });
 
-  console.log(svgOut)
-
+    
+  // console.log(svgOut);
   // create single font svg
-  // fs.writeFileSync(args.output, svgOut, 'utf8');
+  fs.writeFileSync(output, svgOut, 'utf8');
 
 }
 
-writeFile();
+// createSvgFont(fontSrc, fontDir, output);
+
+
+for (let i = 0; i < fontDir.length; i++) {
+  let svg_folder = fontDir[i];
+  let fontFolder = path.join(fontSrc, svg_folder);
+
+  let _svg = fs.readdirSync(fontFolder);
+
+  for (let i = 0; i < _svg.length; i++) {
+    let svgs = _svg[i];
+    let svgfile = path.join(fontFolder, svgs)
+    var svg = parseSvgImage(fs.readFileSync(svgfile, 'utf8'), svgfile);
+
+    if (svg.height == 24) {
+      // console.log(svg_folder);
+      scale_icons(svgs, svg_folder);
+
+    } else {
+      // createSvgFont(fontSrc, fontDir, output);
+    }
+
+  }
+
+
+  // if (svg.height === svg.width) {
+  //   dimens = svg.height;
+  // }
+
+  // if (fontDir ) {}
+  // console.log(svg_folder)
+}
+
+
+  // var svgOut = svgFontTemplate({
+  //   font,
+  //   glyph,
+  //   metadata: 'internal font for pupil software',
+  //   fontHeight : font.ascent - font.descent
+  // });
+  
+  
+  // create single font svg
+  // fs.writeFileSync(args.output, svgOut, 'utf8');
+
+
 
 // _.forEach(args.input_fonts, function (fontDir) {
 //   // Iterate each font
