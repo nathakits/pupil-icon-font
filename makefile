@@ -29,9 +29,6 @@ font:
 	mkdir -p $(FONT_DIR)
 	# build single font
 	./svg-font-create.js \
-		-i ./$(FONTS) \
-		-o $(FONT_DIR)/pupil_icons.svg \
-		-s ./server_config.js
 
 	# convert to other formats
 	./node_modules/.bin/svg2ttf "$(FONT_DIR)/pupil_icons.svg" "$(FONT_DIR)/pupil_icons.ttf"
